@@ -8,7 +8,7 @@ contract MultiSigWallet {
     event Revoke(address indexed owner, uint indexed txId);
     event Execute(uint indexed txId);
 
-    // transaction
+    // Structure of transaction
     struct Transaction {
         address to;
         uint value;
@@ -18,31 +18,34 @@ contract MultiSigWallet {
 
     // Storing owners
     address[] public owners;
-    // checking owners
+    // Checking owners
     mapping(address => bool) public isOwner;
     // no. approvels required for txn to execute
     uint public required;
-
-    // storing those transactions
+    // Storing those transactions
     Transaction[] public transactions;
-    // storing approvel of each txn from each owners
+    // Storing approvel of each txn from each owners
     mapping(uint => mapping(address => bool)) public approved;
 
+    // Owners
     modifier onlyOwner() {
         require(isOwner[msg.sender], "not owner");
         _;
     }
 
+    // Checking the txns
     modifier txExists(uint _txId) {
         require(_txId < transactions.length, "tx does not exist");
         _;
     }
 
+    // Checking the approval was already done
     modifier notApproved(uint _txId) {
         require(!approved[_txId][msg.sender], "tx already approved");
         _;
     }
 
+    // Checking whether the txn is already executed
     modifier notExecuted(uint _txId) {
         require(!transactions[_txId].executed, "tx already executed");
         _;
@@ -54,11 +57,12 @@ contract MultiSigWallet {
         "invalid required number of owners"
         );
 
-        // stating _owners to state variable owner
+        // Stating _owners to state variable owner
         for (uint i; i < _owners.length; i++) {
             address owner = _owners[i];
             
             require(owner != address(0), "invalid owner");
+            // Checking for duplicate owners
             require( !isOwner[owner], "owner is not unique");
 
             isOwner[owner] = true;
@@ -73,6 +77,7 @@ contract MultiSigWallet {
         emit Deposit(msg.sender, msg.value);
     }
 
+    // Function to submit transactions for approval
     function submit( address _to, uint _value, bytes calldata _data)
         external
         onlyOwner
@@ -86,6 +91,7 @@ contract MultiSigWallet {
             emit Submit(transactions.length - 1);
         }
 
+    // Function for each approval
     function approve(uint _txId)
         external
         onlyOwner
@@ -97,6 +103,7 @@ contract MultiSigWallet {
             emit Approve(msg.sender, _txId);
         }
 
+    // Counting the number of approvals
     function _getApprovalCount(uint _txId) private view returns (uint count) {
         for (uint i; i < owners.length; i++) {
             if (approved[_txId][owners[i]]) {
@@ -105,8 +112,9 @@ contract MultiSigWallet {
         }
     }
 
+    // Function to execute transaction
     function execute(uint _txId) external txExists(_txId) notExecuted(_txId) {
-        require(_getApprovalCount(_txId) >= required, "approvals < required");
+        require(_getApprovalCount(_txId) >= required, "approvals count < required count");
         Transaction storage transaction = transactions[_txId];
 
         transaction.executed = true;
@@ -119,6 +127,7 @@ contract MultiSigWallet {
         emit Execute(_txId);
     }
 
+    // Function to revoke the txn
     function revoke(uint _txId) 
         external 
         onlyOwner
